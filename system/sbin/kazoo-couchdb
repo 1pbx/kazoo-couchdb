@@ -52,6 +52,11 @@ prepare() {
     mkdir -p /var/run/couchdb
     chown -R ${USER}:${GROUP} /var/run/couchdb
 
+    # CouchDB will not start up if it does not own its config files.
+    mkdir -p /etc/kazoo/couchdb
+    chown -R ${USER}:${GROUP} /etc/kazoo/couchdb
+
+
     RETVAL=$?
 }
 
