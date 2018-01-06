@@ -1,0 +1,15 @@
+--- couchdb	2018-01-06 14:56:49.871504341 -0500
++++ couchdb.new	2018-01-06 13:58:31.186726312 -0500
+@@ -26,6 +26,10 @@
+ export EMU=beam
+ export PROGNAME=`echo $0 | sed 's/.*\///'`
+ 
++ARGS_FILE="${COUCHDB_ARGS_FILE:-$ROOTDIR/etc/vm.args}"
++SYSCONFIG_FILE="${COUCHDB_SYSCONFIG_FILE:-$ROOTDIR/releases/$APP_VSN/sys.config}"
++
+ exec "$BINDIR/erlexec" -boot "$ROOTDIR/releases/$APP_VSN/couchdb" \
+-     -args_file "$ROOTDIR/etc/vm.args" \
+-     -config "$ROOTDIR/releases/$APP_VSN/sys.config" "$@"
++     -args_file "${ARGS_FILE}" \
++     -config "${SYSCONFIG_FILE}" "$@"
++

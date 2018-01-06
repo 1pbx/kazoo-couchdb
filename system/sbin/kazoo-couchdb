@@ -1,0 +1,143 @@
+#!/bin/bash
+
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+#
+if [ -f /etc/default/couchdb ]; then
+    . /etc/default/couchdb
+fi
+
+if [ -f /etc/sysconfig/couchdb ]; then
+    . /etc/sysconfig/couchdb
+fi
+
+# If our PR to CouchDB was accepted, use CouchDB's start file,
+# otherwise use our own.
+OEM_BINFILE=/opt/couchdb/bin/couchdb
+KAZOO_BINFILE=/usr/sbin/kazoo-run-couchdb
+if [ -e "${OEM_BINFILE}" ] && `grep -qE COUCHDB_ARGS_FILE ${OEM_BINFILE}`; then
+    BINFILE=${OEM_BINFILE}
+else
+    BINFILE=${KAZOO_BINFILE}
+fi
+
+RETVAL=1
+USER=${COUCHDB_USER:-couchdb}
+GROUP=${COUCHDB_GROUP:-couchdb}
+ARGS_FILE='/etc/kazoo/couchdb/vm.args'
+export HOME=${COUCHDB_HOME:-/srv}
+
+# Detect core count
+CORES=`grep -E "^processor" /proc/cpuinfo |wc -l`
+if [ "${CORES}" = "1" ]; then
+	BEAM=beam
+else
+	BEAM=beam.smp
+fi
+
+prepare() {
+    mkdir -p ${HOME}
+    chown -R ${USER}:${GROUP} ${HOME}
+    mkdir -p /var/log/couchdb
+    chown -R ${USER}:${GROUP} /var/log/couchdb
+    mkdir -p /var/run/couchdb
+    chown -R ${USER}:${GROUP} /var/run/couchdb
+
+    RETVAL=$?
+}
+
+start() {
+    cd ${HOME}
+
+    set -- ${BINFILE} "$@"
+    export COUCHDB_ARGS_FILE=${ARGS_FILE}
+    if [ "$(whoami)" == "${USER}" ]; then
+        exec "$@"
+    else
+        runuser -s /bin/bash ${USER} -c "COUCHDB_ARGS_FILE=${ARGS_FILE} exec $*"
+    fi
+    RETVAL=$?
+
+    if [ ${RETVAL} -ne 0 ]; then
+        echo "Failed to start couchdb!"
+        RETVAL=1
+    fi
+}
+
+stop() {
+    for i in `pidof ${BEAM}`; do
+        if cat /proc/$i/cmdline | grep -Eq "name[^\-]+couchdb"; then
+            kill $i
+            RETVAL=$?
+        fi
+    done
+}
+
+restart() {
+    stop
+    start
+}
+
+status() {
+    for i in `pidof ${BEAM}`; do
+        if cat /proc/$i/cmdline | grep -Eq "name[^\-]+couchdb"; then
+            echo "couchdb (pid $i) is running..."
+            if which curl &>/dev/null; then
+                curl localhost:5984/_membership
+            fi
+            RETVAL=0
+        fi
+    done
+    if [ ${RETVAL} -eq 1 ]; then
+        echo "couchdb is not running!"
+    fi
+}
+
+pid() {
+    for i in `pidof ${BEAM}`; do
+        if cat /proc/$i/cmdline | grep -Eq "name[^\-]+couchdb"; then
+            echo $i
+            RETVAL=0
+        fi
+    done
+    if [ ${RETVAL} -eq 1 ]; then
+        echo "couchdb is not running!"
+    fi
+}
+
+case "$1" in
+    prepare)
+        prepare
+        ;;
+    background)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        restart
+        ;;
+    status)
+        status
+        ;;
+    pid)
+        pid
+        ;;
+    *)
+        echo $"Usage: $0 (prepare|background|stop|restart|status|pid)"
+esac
+
+exit ${RETVAL}
+
+# vim: ft=sh ts=4 sts=4 sw=4 et si:
+
