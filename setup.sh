@@ -2,7 +2,7 @@
 
 cp bintray-apache-couchdb-rpm.repo /etc/yum.repos.d/bintray-apache-couchdb-rpm.repo
 
-yum install couchdb-2.3.1
+yum install -y couchdb-2.3.1
 
 sed -i "s/enabled=1/enabled=0/g" /etc/yum.repos.d/bintray-apache-couchdb-rpm.repo
 
