@@ -1,5 +1,4 @@
-# kazoo-configs
-Kazoo Configuration Files for Software We Use
+# CouchDB 2.3.1 for Kazoo.  Install script
 
 Modified CouchDB config for Kazoo.  Includes install script to add CouchDB repo, install correct version, then disable repo.
 
